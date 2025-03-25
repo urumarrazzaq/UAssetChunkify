@@ -2,7 +2,7 @@ import os
 import re
 
 def split_file(file_path, chunk_size=25 * 1024 * 1024):
-    """Splits a large .uasset file into 25MB chunks."""
+    """Splits a large file into 25MB chunks."""
     if not os.path.exists(file_path):
         print("❌ File not found!")
         return
@@ -26,6 +26,11 @@ def split_file(file_path, chunk_size=25 * 1024 * 1024):
 
     print(f"\n✅ File split into {chunk_index} parts.")
 
+    # Ask user if they want to delete the original file
+    delete_original = input(f"🗑️ Do you want to delete the original file '{file_path}'? (y/n): ").strip().lower()
+    if delete_original == 'y':
+        os.remove(file_path)
+        print(f"🗑️ Deleted: {file_path}")
 
 def merge_files(output_file_name, chunk_prefix):
     """Merges split file chunks back into a single file."""
@@ -42,6 +47,13 @@ def merge_files(output_file_name, chunk_prefix):
                 print(f"✅ Merged: {chunk_file} ({len(data)} bytes)")
 
     print(f"\n✅ Successfully reconstructed: {output_file_name}")
+
+    # Ask user if they want to delete the split files
+    delete_chunks = input(f"🗑️ Do you want to delete the split files? (y/n): ").strip().lower()
+    if delete_chunks == 'y':
+        for chunk_file in chunk_files:
+            os.remove(chunk_file)
+            print(f"🗑️ Deleted: {chunk_file}")
 
 def auto_merge_files(directory):
     """Automatically detects and merges split files in a directory."""
@@ -74,6 +86,13 @@ def auto_merge_files(directory):
 
         print(f"\n✅ Successfully reconstructed: {output_file_name}")
 
+        # Ask user if they want to delete the split files
+        delete_chunks = input(f"🗑️ Do you want to delete the split files for '{prefix}'? (y/n): ").strip().lower()
+        if delete_chunks == 'y':
+            for file in files:
+                os.remove(file)
+                print(f"🗑️ Deleted: {file}")
+
 # 🛠 User Input for Directory & Action
 directory = input("📂 Enter the directory path: ").strip()
 if not os.path.isdir(directory):
@@ -82,16 +101,16 @@ if not os.path.isdir(directory):
 
 os.chdir(directory)  # Change working directory to user input
 
-action = input("🔄 Do you want to [S]plit or [M]erge a file or [A]utoMerge a file? ").strip().lower()
+action = input("🔄 Do you want to [S]plit, [M]erge, or [A]utoMerge a file? ").strip().lower()
 
 if action == "s":
-    file_name = input("📁 Enter the .uasset file name to split: ").strip()
+    file_name = input("📁 Enter the file name to split: ").strip()
     split_file(file_name)
 elif action == "m":
     output_file = input("📁 Enter the output file name (e.g., merged_file.uasset): ").strip()
-    chunk_prefix = input("🔍 Enter the prefix of split files (without '_partXXX.uasset'): ").strip()
+    chunk_prefix = input("🔍 Enter the prefix of split files (without '_partXXX'): ").strip()
     merge_files(output_file, chunk_prefix)
 elif action == "a":
     auto_merge_files(directory)
 else:
-    print("❌ Invalid choice! Please enter 'S' for Split or 'M' for Merge or 'A' for Auto Merge.")
+    print("❌ Invalid choice! Please enter 'S' for Split, 'M' for Merge, or 'A' for Auto Merge.")
