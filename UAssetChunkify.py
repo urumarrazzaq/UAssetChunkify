@@ -1,13 +1,14 @@
 import os
 import re
 
-def split_file(file_path, chunk_size=25 * 1024 * 1024):
-    """Splits a large file into 25MB chunks."""
+CHUNK_SIZE = 25 * 1024 * 1024  # 25MB default chunk size
+
+def split_file(file_path, chunk_size=CHUNK_SIZE):
+    """Splits a large .uasset file into 25MB chunks."""
     if not os.path.exists(file_path):
         print("❌ File not found!")
         return
 
-    file_size = os.path.getsize(file_path)
     file_name, file_ext = os.path.splitext(file_path)
     
     with open(file_path, 'rb') as f:
@@ -32,29 +33,6 @@ def split_file(file_path, chunk_size=25 * 1024 * 1024):
         os.remove(file_path)
         print(f"🗑️ Deleted: {file_path}")
 
-def merge_files(output_file_name, chunk_prefix):
-    """Merges split file chunks back into a single file."""
-    chunk_files = [f for f in os.listdir() if f.startswith(chunk_prefix) and "_part" in f]
-    
-    # Ensure correct order (sort by part number)
-    chunk_files.sort(key=lambda x: int(x.split("_part")[-1].split(".")[0]))  
-
-    with open(output_file_name, 'wb') as output_file:
-        for chunk_file in chunk_files:
-            with open(chunk_file, 'rb') as f:
-                data = f.read()
-                output_file.write(data)
-                print(f"✅ Merged: {chunk_file} ({len(data)} bytes)")
-
-    print(f"\n✅ Successfully reconstructed: {output_file_name}")
-
-    # Ask user if they want to delete the split files
-    delete_chunks = input(f"🗑️ Do you want to delete the split files? (y/n): ").strip().lower()
-    if delete_chunks == 'y':
-        for chunk_file in chunk_files:
-            os.remove(chunk_file)
-            print(f"🗑️ Deleted: {chunk_file}")
-
 def auto_merge_files(directory):
     """Automatically detects and merges split files in a directory."""
     os.chdir(directory)  # Change working directory to user input
@@ -76,7 +54,7 @@ def auto_merge_files(directory):
     # Merge each group
     for prefix, files in file_groups.items():
         files.sort(key=lambda x: int(re.search(r"_part(\d+)", x).group(1)))  # Sort by part number
-        output_file_name = f"{prefix}_merged{os.path.splitext(files[0])[1]}"  # Keep original extension
+        output_file_name = f"{prefix}{os.path.splitext(files[0])[1]}"  # Keep original filename without "_merged"
 
         with open(output_file_name, 'wb') as output_file:
             for file in files:
@@ -93,6 +71,21 @@ def auto_merge_files(directory):
                 os.remove(file)
                 print(f"🗑️ Deleted: {file}")
 
+def auto_slice_files(directory, chunk_size=CHUNK_SIZE):
+    """Automatically finds large files in a directory and splits them into chunks."""
+    os.chdir(directory)  # Change working directory to user input
+    files = [f for f in os.listdir() if os.path.isfile(f) and not re.search(r"_part\d+\.", f)]
+
+    if not files:
+        print("❌ No files found in the directory.")
+        return
+
+    for file in files:
+        file_size = os.path.getsize(file)
+        if file_size > chunk_size:
+            print(f"📂 Splitting '{file}' ({file_size} bytes)...")
+            split_file(file)
+
 # 🛠 User Input for Directory & Action
 directory = input("📂 Enter the directory path: ").strip()
 if not os.path.isdir(directory):
@@ -101,16 +94,18 @@ if not os.path.isdir(directory):
 
 os.chdir(directory)  # Change working directory to user input
 
-action = input("🔄 Do you want to [S]plit, [M]erge, or [A]utoMerge a file? ").strip().lower()
+action = input("🔄 Do you want to [S]plit, [M]erge, [A]uto Merge, or [X] Auto Slice? ").strip().lower()
 
 if action == "s":
-    file_name = input("📁 Enter the file name to split: ").strip()
+    file_name = input("📁 Enter the .uasset file name to split: ").strip()
     split_file(file_name)
 elif action == "m":
     output_file = input("📁 Enter the output file name (e.g., merged_file.uasset): ").strip()
-    chunk_prefix = input("🔍 Enter the prefix of split files (without '_partXXX'): ").strip()
-    merge_files(output_file, chunk_prefix)
+    chunk_prefix = input("🔍 Enter the prefix of split files (without '_partXXX.uasset'): ").strip()
+    merge_files(output_file, chunk_prefix) # type: ignore
 elif action == "a":
     auto_merge_files(directory)
+elif action == "x":
+    auto_slice_files(directory)
 else:
-    print("❌ Invalid choice! Please enter 'S' for Split, 'M' for Merge, or 'A' for Auto Merge.")
+    print("❌ Invalid choice! Please enter 'S' for Split, 'M' for Merge, 'A' for Auto Merge, or 'X' for Auto Slice.")
